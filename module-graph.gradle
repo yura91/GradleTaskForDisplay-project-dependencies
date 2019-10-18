@@ -1,0 +1,28 @@
+task moduleDependencyReport {
+    doLast {
+        def file = new File("project-dependencies.dot")
+        file.delete()
+        file << "strict digraph {\n"
+        def lines = collectDependencies(file, rootProject)
+        lines = lines.sort()
+        lines.forEach { line -> file << line }
+        file << "}\n"
+    }
+}
+
+// recursively print dependencies to file and move on to child projects
+def collectDependencies(file, project) {
+    def dependencies = new HashSet<String>()
+
+    project.configurations
+            .collectMany { it.allDependencies }
+            .findAll { it instanceof ProjectDependency }
+            .each { dependency ->
+        dependencies.add("\"${project.name}\" -> \"${dependency.name}\"\n")
+    }
+
+    project.childProjects.each { name, childProject ->
+        dependencies.addAll(collectDependencies(file, childProject))
+    }
+    return dependencies
+}
